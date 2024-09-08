@@ -5,11 +5,12 @@ import bcrypt from 'bcrypt';
 import cloudinary from 'cloudinary';
 import crypto from 'crypto';
 import fs from 'fs';
+import sendEmail from "../utils/sendEmail.js";
 const cookieOptions = {
-    expires:new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) ,
-    httpOnly:true,
-    secure:true,
-    sameSite:"none"
+    expires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+    httpOnly: true,
+    secure: true,
+    sameSite: "none"
 }
 
 const register = async (req, res, next) => {
@@ -35,8 +36,6 @@ const register = async (req, res, next) => {
             return next(new AppError('Email already exists', 409));
         }
 
-        //The higher the number, the more secure the hash will be, but it will also take longer to compute. Therefore, it's a balance between security and performance.
-        // console.log("hashed password is :", hashedPassword);
         const hashedPassword = await bcrypt.hash(password, 10);
 
         const user = await User.create({
@@ -90,12 +89,12 @@ const register = async (req, res, next) => {
         const token = await user.generateJWTToken();
         res.cookie('token', token, cookieOptions)
         user.password = undefined;
-        console.log('token ready hai',token);
+        console.log('token ready hai', token);
         console.log(res.cookie);
         return res.status(200).json({
             success: true,
             message: 'User registered successfully',
-            user
+            data:user
         })
 
     } catch (e) {
@@ -114,16 +113,16 @@ const logout = (req, res) => {
 
         // res.cookie('token', null);
         res
-        .cookie('token', null, {
-            secure: true,
-            expires: new Date(Date.now()+0),
-            httpOnly: true,
-            sameSite:"none"
-        })
-        .status(200).json({
-            success: true,
-            message: 'User logged out successfully'
-        })
+            .cookie('token', null, {
+                secure: true,
+                expires: new Date(Date.now() + 0),
+                httpOnly: true,
+                sameSite: "none"
+            })
+            .status(200).json({
+                success: true,
+                message: 'User logged out successfully'
+            })
     }
     catch (e) {
         return next(new AppError(e.message, 400));
@@ -158,13 +157,13 @@ const login = async (req, res, next) => {
         user.password = undefined;
 
         res
-        .cookie('token', token, cookieOptions)
-        .status(200).json({
-            success: true,
-            message: "User LoggedIn successfully",
-            user,
-            Token: token
-        });
+            .cookie('token', token, cookieOptions)
+            .status(200).json({
+                success: true,
+                message: "User LoggedIn successfully",
+                data:user,
+                Token: token
+            });
 
 
     } catch (e) {
@@ -176,21 +175,21 @@ const getProfile = async (req, res, next) => {
     try {
         const userId = req.user.id;
 
-        if(!userId){
+        if (!userId) {
             return next(new AppError('User not found'));
         }
         const user = await User.findById(userId);
 
-        if(!user){
+        if (!user) {
             return next(new AppError('User not found'));
         }
         res.status(200).json({
             success: true,
             message: "Fetched User Details",
-            user
+            data:user
         })
     } catch (err) {
-        return next(new AppError(err.message , 400));
+        return next(new AppError(err.message, 400));
     }
 }
 
@@ -205,24 +204,27 @@ const forgotPassword = async (req, res, next) => {
         return next(new AppError('Email not registered', 400));
     }
 
-
     try {
-
         const resetToken = await user.generatePasswordResetToken();
         await user.save();
 
+        //send token via email
+        const url = `${process.env.FRONTEND_URL}/resetPassword/${resetToken}`
+        const subject = 'Reset Password Link';
+        const text = "Your reset password link";
+        const html = `<h3><b>Your reset password link is this <a href='${url}'> Reset Password Link</a>. You can click here to reset your password.<b/><h3></br>Remember the link is only valid till 15 mins.`
+        const emailSend = await sendEmail(email, subject, text, html);
+        if (emailSend) {
+            return res.status(200).json({
+                success: true,
+                message: `Reset Link has been sent to ${email} `,
+                token: resetToken
+            })
+        }
 
-        
-        // const resetPasswordUrl = `${process.env.FRONTEND_URL}reset-password/${resetToken}`;
-        // console.log(resetPasswordUrl);
-
-        // const subject = "Reset Password Mail";
-        // const message = resetPasswordUrl;
-        await sendEmail();
-
-        return res.status(200).json({
-            success: true,
-            message: `Reset Password Token has been sent to ${email} successfully`,
+        return res.status(400).json({
+            success: false,
+            message: `Unable to send email at ${email}, please try later `,
         })
     }
     catch (e) {
@@ -236,18 +238,22 @@ const forgotPassword = async (req, res, next) => {
 }
 
 const resetPassword = async (req, res, next) => {
-    const { resetToken } = req.params;
-    const { password } = req.body;
-    console.log({ resetToken, password });
-
+    const { password, confirmPassword, resetToken } = req.body;
 
     if (!password) {
+        console.log('Password required');
         return next(new AppError('Password is required', 400));
+    }
+
+    if (password != confirmPassword) {
+        return next(new AppError('Password and Confirm Password does not match.', 400));
     }
 
     if (!resetToken) {
         return next(new AppError('Reset Token is missing', 400));
     }
+
+    console.log('working till here');
 
     const hashToken = crypto.createHash('sha256')
         .update(resetToken)
@@ -258,11 +264,11 @@ const resetPassword = async (req, res, next) => {
     try {
         const user = await User.findOne({
             forgotPasswordToken: hashToken,
-            // forgotPasswordExpiry: { $gt: Date.now() }
+            forgotPasswordExpiry: { $gt: Date.now() } 
         });
 
         if (!user) {
-            return next(new AppError('Invalid Token or token is expired', 400));
+            return next(new AppError('Link Expired. Go Back and click on Forget Password again.', 400));
         }
 
         const hashedPassword = await bcrypt.hash(password, 10);
@@ -285,8 +291,6 @@ const resetPassword = async (req, res, next) => {
 }
 
 const changePassword = async (req, res, next) => {
-    // console.log("request is: ", req);
-    // console.log("response is: ", req);
     const { oldPassword, newPassword } = req.body;
     const { id } = req.user;
 
@@ -331,11 +335,11 @@ const changePassword = async (req, res, next) => {
 
 const updateUser = async (req, res, next) => {
 
-    if (Object.keys(req.body).length === 0) {
-        return res.status(200).json({
-            message: "Nothing to update"
-        })
-    }
+    // if (Object.keys(req.body).length === 0) {
+    //     return res.status(200).json({
+    //         message: "Nothing to update"
+    //     })
+    // }
 
     const { fullName } = req.body;
 
@@ -353,14 +357,14 @@ const updateUser = async (req, res, next) => {
 
     if (req.file) {
         await cloudinary.v2.uploader.destroy(user.avatar.public_id);
-        
+
         user.avatar.public_id = null;
         user.avatar.secure_url = null;
 
         let result;
-        try{
+        try {
             result = await cloudinary.v2.uploader.upload(req.file.path, { folder: 'lms' });
-        }catch(e){
+        } catch (e) {
             console.log('Error uploading to cloudinary', error);
         }
 
@@ -402,7 +406,7 @@ const deleteUser = async (req, res, next) => {
     const { email, password } = req.body;
 
 
-    if(!password || !email){
+    if (!password || !email) {
         return next(new AppError('Please provide your password and email', 400))
     }
 
@@ -416,9 +420,9 @@ const deleteUser = async (req, res, next) => {
             });
         }
 
-        const isPasswordCorrect = await bcrypt.compare(password,user.password);
+        const isPasswordCorrect = await bcrypt.compare(password, user.password);
 
-        if(!isPasswordCorrect){
+        if (!isPasswordCorrect) {
             return next(new AppError('Password Incorrect'), 400);
         }
 

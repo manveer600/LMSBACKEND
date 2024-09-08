@@ -74,7 +74,7 @@ userSchema.methods = {
                                    .digest('hex');
 
         console.log("Hashed token: ", this.forgotPasswordToken);
-        this.forgotPasswordExpiry = Date.now() + 15*60*1000; //15 min from now
+        this.forgotPasswordExpiry = Date.now() + 15*60*1000;
         return resetToken;
     }
 }

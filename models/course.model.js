@@ -4,7 +4,7 @@ const courseSchema = mongoose.Schema({
     title: {
         type: String,
         required:[true,'Title is required'],
-        minLength:[8,'Title must be atleast 8 characters'],
+        minLength:[4,'Title must be atleast 4 characters'],
         maxLength:[60,'Title should be atmost 60 characters long.'],
         trim:true,
     },

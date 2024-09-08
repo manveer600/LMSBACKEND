@@ -2,6 +2,8 @@ import Course from '../models/course.model.js'
 import AppError from '../utils/error.utils.js';
 import cloudinary from 'cloudinary';
 import fs from 'fs';
+import multer from 'multer';
+import path from 'path';
 
 export const getAllCourses = async (req, res, next) => {
     try {
@@ -30,7 +32,7 @@ export const getLecturesByCourseId = async (req, res, next) => {
         res.status(200).json({
             success: true,
             message: `${course.title} lectures fetched successfully`,
-            lectures: course.lectures
+            data: course.lectures
         })
 
     } catch (e) {
@@ -66,8 +68,6 @@ export const createCourse = async (req, res, next) => {
 
 
         if (req.file) {
-
-
             try {
                 const result = await cloudinary.v2.uploader.upload(req.file.path, { folder: 'lms' });
                 if (result) {
@@ -197,77 +197,106 @@ export const updateCourseById = async (req, res, next) => {
 }
 
 export const addLectureToCourseById = async (req, res, next) => {
-    const { title, description } = req.body;
     try {
-        const { id } = req.params;
-
-        if (!id) {
-            return next(new AppError("Please provide a valid ID", 400))
-        }
-
-        if (!title || !description) {
-            return next(new AppError("Please fill all the fields", 400))
-        }
-
-        const course = await Course.findById(id);
-
-        if (!course) {
-            return next(new AppError("No Course Found with this ID", 400))
-        }
-
-        let lecture = {};
-
-        if (req.file) {
-            try {
-                const result = await cloudinary.v2.uploader.upload(req.file.path, {
-                    folder: 'lms', // Save files in a folder named lms
-                    resource_type: 'video',
-                });
-
-                if (result) {
-                    lecture.public_id = result.public_id;
-                    lecture.secure_url = result.secure_url;
-                    console.log("result is", lecture);
-                }
-
-
-                fs.rm(`uploads/${req.file.filename}`, (err) => {
-                    if (err) {
-                        console.log('Error in removing file');
-                    } else {
-                        console.log('File removed');
-                    }
-                });
-
-            } catch (e) {
-                console.log(e);
-                res.status(500).json({
-                    message: 'some error has occured'
-                })
+        upload(req, res, async function (err) {
+            if (err) {
+                console.log('error while adding lecture', err.message);
+                return res.status(400).json({ success: false, message: err.message });
+                // return next(new AppError(err.message, 400));
             }
-        }
+            else {
+                if (!req.file) {
+                    return res.status(400).json({
+                        success: false,
+                        message: 'Kindly upload a lecture'
+                    })
+                } else {
+                    const { title, description } = req.body;
+                    try {
+                        const { id } = req.params;
 
-        const lectureData = { title, description, lecture };
-        console.log(lectureData);
-        course.lectures.push(lectureData);
+                        if (!id) {
+                            return res.status(400).json({
+                                success: false,
+                                message: 'Course is not valid'
+                            })
+                        }
 
-        course.numberOfLectures = course.lectures.length;
-        await course.save();
+                        if (!title || !description) {
+                            return res.status(400).json({
+                                success: false,
+                                message: 'Title and description both are required'
+                            })
+                        }
 
-        res.status(200).json({
-            success: true,
-            message: "Lecture Successfully Added",
-            course
+                        const course = await Course.findById(id);
+
+                        if (!course) {
+                            return res.status(400).json({
+                                success: false,
+                                message: 'No course found'
+                            })
+                        }
+
+                        let lecture = {};
+
+                        //let's upload a lecture here
+                        try {
+                            const result = await cloudinary.v2.uploader.upload(req.file.path, {
+                                folder: 'lms', // Save files in a folder named lms
+                                resource_type: 'video',
+                            });
+
+                            if (result) {
+                                lecture.public_id = result.public_id;
+                                lecture.secure_url = result.secure_url;
+                            }
+
+
+                            fs.unlink(`uploads/${req.file.filename}`, (err) => {
+                                if (err) {
+                                    console.log('Error in removing file');
+                                } else {
+                                    console.log('File removed');
+                                }
+                            });
+
+                        } catch (e) {
+                            console.log(e);
+                            res.status(500).json({
+                                success: false,
+                                message: 'There is an error while uploading a video.'
+                            })
+                        }
+
+                        const lectureData = { title, description, lecture };
+                        console.log(lectureData);
+                        course.lectures.push(lectureData);
+
+                        course.numberOfLectures = course.lectures.length;
+                        await course.save();
+
+                        return res.status(200).json({
+                            success: true,
+                            message: "Lecture Added Successfully",
+                            data: course
+                        })
+
+
+                    } catch (e) {
+                        console.log(e);
+                        return res.status(400).json({
+                            success: false,
+                            message: e.message
+                        })
+                    }
+                }
+            }
         })
-
-
-    } catch (e) {
-        console.log('Error in adding lecture to course');
-        console.log(e);
-        return next(new AppError(e.message, 400));
+    } catch (error) {
+        return res.status(400).json({ success: false, message: error.message });
     }
 }
-
 
 export const updateLecturesOfSpecificCourse = async (req, res, next) => {
     try {
@@ -410,3 +439,37 @@ export const deleteAllCourses = async (req, res, next) => {
         return next(new AppError(e.message, 500));
     }
 };
+
+
+
+
+
+
+
+
+
+
+const upload = multer({
+    limits: { fileSize: 50 * 1024 * 1024 * 1024 }, //50GB
+    storage: multer.diskStorage({
+        destination: function (req, file, cb) {
+            cb(null, 'uploads/');
+        },
+        filename: function (req, file, cb) {
+            cb(null, `${file.fieldname}-${Date.now()}-${file.originalname}`);
+        }
+    }),
+    // fileFilter: function (req, file, cb) {
+    //     const extension = path.extname(file.originalname);
+
+    //     const allowedExtensions = ['.png', '.jpg', '.jpeg', '.webp'];
+
+    //     if (!allowedExtensions.includes(extension.toLowerCase())) {
+    //         console.log('Unsupported file type:', extension);
+    //         return cb(new Error('Unsupported file type'), false);
+    //     }
+
+    //     cb(null, true);
+    //     console.log('File is valid and uploading...');
+    // }
+}).single('lecture');

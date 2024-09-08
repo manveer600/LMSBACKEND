@@ -9,7 +9,7 @@ router.post('/login', login);
 router.get('/logout', logout);
 router.get('/me', isLoggedIn ,getProfile);
 router.post('/forgot-password', forgotPassword);
-router.post('/reset-password/:resetToken', resetPassword);
+router.post('/reset-password', resetPassword);
 router.post('/change-password', isLoggedIn, changePassword);
 router.put('/update-user', isLoggedIn,upload.single('avatar'), updateUser);
 router.delete('/delete-user', deleteUser);
