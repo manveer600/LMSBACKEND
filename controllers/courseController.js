@@ -453,23 +453,23 @@ const upload = multer({
     limits: { fileSize: 50 * 1024 * 1024 * 1024 }, //50GB
     storage: multer.diskStorage({
         destination: function (req, file, cb) {
-            cb(null, 'uploads/');
+            cb(null, '../uploads');
         },
         filename: function (req, file, cb) {
             cb(null, `${file.fieldname}-${Date.now()}-${file.originalname}`);
         }
     }),
-    // fileFilter: function (req, file, cb) {
-    //     const extension = path.extname(file.originalname);
+    fileFilter: function (req, file, cb) {
+        const extension = path.extname(file.originalname);
 
-    //     const allowedExtensions = ['.png', '.jpg', '.jpeg', '.webp'];
+        const allowedExtensions = ['.png', '.jpg', '.jpeg', '.webp'];
 
-    //     if (!allowedExtensions.includes(extension.toLowerCase())) {
-    //         console.log('Unsupported file type:', extension);
-    //         return cb(new Error('Unsupported file type'), false);
-    //     }
+        if (!allowedExtensions.includes(extension.toLowerCase())) {
+            console.log('Unsupported file type:', extension);
+            return cb(new Error('Unsupported file type'), false);
+        }
 
-    //     cb(null, true);
-    //     console.log('File is valid and uploading...');
-    // }
+        cb(null, true);
+        console.log('File is valid and uploading...');
+    }
 }).single('lecture');
