@@ -2,6 +2,7 @@ import Course from "../models/course.model.js";
 import User from "../models/user.model.js"
 import favCourse from "../models/fav.course.model.js";
 import AppError from "../utils/error.utils.js";
+import Message from "../models/messageModel.js";
 
 export const userStats = async(req,res) => {
     console.log(req.user);
@@ -22,9 +23,6 @@ export const userStats = async(req,res) => {
 
 export const contactUs = async (req, res) => {
     const { name, email, message } = req.body;
-    console.log(name);
-    console.log(email);
-    console.log(message);
     if (!name || !email || !message) {
         return res.status(400).json({
             success: false,
@@ -33,13 +31,13 @@ export const contactUs = async (req, res) => {
     }
 
     try {
-        const user = await User.create({
+        const feedBack = await Message.create({
             name,
             email,
             message,
         });
 
-        await user.save();
+        await feedBack.save();
 
         return res.status(200).json({
             success: true,

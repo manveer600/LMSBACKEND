@@ -10,7 +10,7 @@ const router = express.Router();
 // router.delete('/favouriteCourses/:id', isLoggedIn, deleteFavCourses);
 // router.get('/getAllFavCourses', isLoggedIn, getAllFavCourses);
 router.get('/admin/stats/users', isLoggedIn, authorizedRoles, userStats);
-router.post('/contact', isLoggedIn, contactUs )
+router.post('/contact', isLoggedIn, contactUs );
 
 export default router;
 
