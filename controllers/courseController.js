@@ -5,18 +5,46 @@ import fs from 'fs';
 import multer from 'multer';
 import path from 'path';
 
+function escapeRegex(text) {
+    // Escaping special characters in regex
+    return text.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+}
+
 export const getAllCourses = async (req, res, next) => {
     try {
-        const courses = await Course.find({}).select('-lectures');
+        const where = {};
+
+        if (req.query.title) {
+            const escapedTitle = escapeRegex(req.query.title);
+            console.log('Escaped Title:', escapedTitle);  // Log the escaped title for debugging
+            where.title = { $regex: escapedTitle, $options: 'i' };  // Escape special chars
+        }
+
+        if (req.query.category) {
+            const escapedCategory = escapeRegex(req.query.category);
+            where.category = { $regex: escapedCategory, $options: 'i' };
+        }
+
+        if (req.query.instructor) {
+            const escapedInstructor = escapeRegex(req.query.instructor);
+            where.instructor = { $regex: escapedInstructor, $options: 'i' };
+        }
+
+        console.log('Search Query:', where);  // Log the final search query
+
+        const courses = await Course.find(where).select('-lectures');
         res.status(200).json({
             success: true,
             message: 'All Courses',
-            courses    /*array of array*/
-        })
+            data: courses
+        });
     } catch (e) {
+        console.log('Error while getting all courses', e);
         return next(new AppError(e.message, 400));
     }
-}
+};
+
+
 
 export const getLecturesByCourseId = async (req, res, next) => {
 
