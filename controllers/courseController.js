@@ -4,7 +4,21 @@ import cloudinary from 'cloudinary';
 import fs from 'fs';
 import multer from 'multer';
 import path from 'path';
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+import fs from 'fs';
 
+// Resolve the current file path
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+// Define the upload destination folder path
+const uploadFolder = path.join(__dirname, '../uploads');
+
+// Ensure the upload folder exists
+if (!fs.existsSync(uploadFolder)) {
+    fs.mkdirSync(uploadFolder, { recursive: true });
+}
 function escapeRegex(text) {
     // Escaping special characters in regex
     return text.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
@@ -472,7 +486,7 @@ const upload = multer({
     limits: { fileSize: 50 * 1024 * 1024 * 1024 }, //50GB
     storage: multer.diskStorage({
         destination: function (req, file, cb) {
-            cb(null, './uploads');
+            cb(null, uploadFolder);
         },
         filename: function (req, file, cb) {
             cb(null, `${file.fieldname}-${Date.now()}-${file.originalname}`);
