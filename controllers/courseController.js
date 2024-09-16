@@ -6,7 +6,6 @@ import multer from 'multer';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
-import fs from 'fs';
 
 // Resolve the current file path
 const __filename = fileURLToPath(import.meta.url);
