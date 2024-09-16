@@ -7,20 +7,13 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
 
-// Resolve the current file path
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-// Define the upload destination folder path
 const uploadFolder = path.join(__dirname, '../uploads');
 
-// Ensure the upload folder exists
 if (!fs.existsSync(uploadFolder)) {
     fs.mkdirSync(uploadFolder, { recursive: true });
-}
-function escapeRegex(text) {
-    // Escaping special characters in regex
-    return text.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
 }
 
 export const getAllCourses = async (req, res, next) => {
@@ -28,22 +21,16 @@ export const getAllCourses = async (req, res, next) => {
         const where = {};
 
         if (req.query.title) {
-            const escapedTitle = escapeRegex(req.query.title);
-            console.log('Escaped Title:', escapedTitle);  // Log the escaped title for debugging
-            where.title = { $regex: escapedTitle, $options: 'i' };  // Escape special chars
+            where.title = { $regex: req.query.title, $options: 'i' }; 
         }
 
         if (req.query.category) {
-            const escapedCategory = escapeRegex(req.query.category);
-            where.category = { $regex: escapedCategory, $options: 'i' };
+            where.category = { $regex: req.query.category, $options: 'i' };
         }
 
         if (req.query.instructor) {
-            const escapedInstructor = escapeRegex(req.query.instructor);
-            where.instructor = { $regex: escapedInstructor, $options: 'i' };
+            where.instructor = { $regex: req.query.instructor, $options: 'i' };
         }
-
-        console.log('Search Query:', where);  // Log the final search query
 
         const courses = await Course.find(where).select('-lectures');
         res.status(200).json({
@@ -56,8 +43,6 @@ export const getAllCourses = async (req, res, next) => {
         return next(new AppError(e.message, 400));
     }
 };
-
-
 
 export const getLecturesByCourseId = async (req, res, next) => {
 

@@ -5,7 +5,6 @@ import AppError from "../utils/error.utils.js";
 import Message from "../models/messageModel.js";
 
 export const userStats = async(req,res) => {
-    console.log(req.user);
     const allUserCounts = await User.countDocuments();
 
     const subscribedUsersCount = await User.countDocuments({

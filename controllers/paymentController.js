@@ -166,11 +166,13 @@ export const cancelSubscription = (async (req, res, next) => {
 export const allPayments = (async (req, res, _next) => {
     const { count, skip } = req.query;
 
-    // Find all subscriptions from razorpay
+    // // Find all subscriptions from razorpay
     const allPayments = await razorpay.subscriptions.all({
         count: count ? count : 10, // If count is sent then use that else default to 10
         skip: skip ? skip : 0, // // If skip is sent then use that else default to 0
     });
+
+    // console.log('all payments are these', allPayments);
 
     const monthNames = [
         'January',
