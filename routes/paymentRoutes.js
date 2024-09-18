@@ -3,7 +3,6 @@ const router = express.Router();
 
 import {getRazorpayApiKey, buySubscription, verifySubscription, cancelSubscription, allPayments} from "../controllers/paymentController.js"
 import { authorizedRoles, isLoggedIn, authorizedSubscribers } from '../middlewares/auth.middleware.js';
-console.log('payment');
 router.get('/razorpay-key', isLoggedIn, getRazorpayApiKey);
 router.post('/subscribe', isLoggedIn,  buySubscription);
 router.post('/verify', isLoggedIn, verifySubscription);

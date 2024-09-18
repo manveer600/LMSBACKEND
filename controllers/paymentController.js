@@ -1,60 +1,68 @@
 import User from '../models/user.model.js'
 import AppError from '../utils/error.utils.js';
-import {razorpay} from '../server.js';
+import { razorpay } from '../server.js';
 import crypto from 'crypto';
 import Payment from '../models/payment.model.js'
 
-export const getRazorpayApiKey = async (req, res, next) => {
-    console.log('razorpayapikey response:');
-    res.status(200).json({
+export const getRazorpayApiKey = async (req, res) => {
+    return res.status(200).json({
         success: true,
         message: 'Razorpay API key',
-        key: process.env.RAZORPAY_KEY_ID
+        data: process.env.RAZORPAY_KEY_ID
     })
 }
 
 export const buySubscription = async (req, res, next) => {
-    const { id } = req.user;
-    const user = await User.findById(id);
+    try {
+        const { id } = req.user;
+        const user = await User.findById(id);
+        if (!user) {
+            return next(new AppError('Unauthenticated, please login'));
+        }
 
-    if (!user) {
-        return next(new AppError('Unauthorized, please login'));
+        if (user.role === 'ADMIN') {
+            return next(new AppError(`Admin can't purchase a subscription`, 403));
+        }
+
+        const subscription = await razorpay.subscriptions.create({
+            plan_id: process.env.RAZORPAY_PLAN_ID,
+            customer_notify: 1,// 1 means razorpay will handle notifying the customer, 0 means we will not notify the customer
+            total_count: 12, // 12 means it will charge every month for a 1-year sub.
+        });
+
+        if (!subscription || subscription instanceof Error) {
+            return res.status(400).json({
+                success: false,
+                message: 'Unable to subscribe the course.'
+            })
+        }
+
+        user.subscription.id = subscription.id;
+        user.subscription.status = subscription.status
+        await user.save();
+
+        return res.status(200).json({
+            success: true,
+            message: "subscribed successfully",
+            data: subscription.id
+        })
+    } catch (error) {
+        console.log('error at the backend while subscribing the course', error);
+        return res.status(400).json({
+            success: false,
+            message: error?.message
+        })
     }
-
-    if (user.role === 'ADMIN') {
-        return next(new AppError(`Admin can't purchase a subscription`, 403));
-    }
-
-    const subscription = await razorpay.subscriptions.create({
-        plan_id: process.env.RAZORPAY_PLAN_ID,
-        // customer_notify: 1,// 1 means razorpay will handle notifying the customer, 0 means we will not notify the customer
-        total_count: 12, // 12 means it will charge every month for a 1-year sub.
-    });
-
-    user.subscription.id = subscription.id;
-    user.subscription.status = subscription.status
-    console.log("user is", user);
-    await user.save();
-
-    res.status(200).json({
-        success: true,
-        message: "subscribed successfully",
-        subscription_id: subscription.id
-    })
 }
 
 export const verifySubscription = async (req, res, next) => {
     const { id } = req.user;
-
-    const { razorpay_payment_id, razorpay_signature, razorpay_subscription_id } = req.body;
-
     const user = await User.findById(id);
-
     if (!user) {
         return next(new AppError('Unauthorized, please login', 400));
     }
 
-    // Getting the subscription ID from the user object
+    const { razorpay_payment_id, razorpay_signature, razorpay_subscription_id } = req.body;
     const subscriptionId = user.subscription.id;
 
     // Generating a signature with SHA256 for verification purposes
@@ -83,7 +91,7 @@ export const verifySubscription = async (req, res, next) => {
     // Save the user in the DB with any changes
     await user.save();
 
-    res.status(200).json({
+    return res.status(200).json({
         success: true,
         message: 'Payment verified successfully',
     });
@@ -115,7 +123,7 @@ export const cancelSubscription = (async (req, res, next) => {
         // Adding the subscription status to the user account
         user.subscription.status = subscription.status;
         // Saving the user object
-        console.log('User after cancelling its payment',user);
+        console.log('User after cancelling its payment', user);
         await user.save();
     } catch (error) {
         // Returning error if any, and this error is from razorpay so we have statusCode and message built in
@@ -157,7 +165,7 @@ export const cancelSubscription = (async (req, res, next) => {
     await Payment.deleteOne({ _id: payment._id });
 
     // Send the response
-    res.status(200).json({
+    return res.status(200).json({
         success: true,
         message: 'Subscription cancelled successfully',
     });
@@ -172,7 +180,7 @@ export const allPayments = (async (req, res, _next) => {
         skip: skip ? skip : 0, // // If skip is sent then use that else default to 0
     });
 
-    // console.log('all payments are these', allPayments);
+    console.log('all payments are these', allPayments);
 
     const monthNames = [
         'January',
@@ -225,7 +233,7 @@ export const allPayments = (async (req, res, _next) => {
         monthlySalesRecord.push(finalMonths[monthName]);
     });
 
-    res.status(200).json({
+    return res.status(200).json({
         success: true,
         message: 'All payments',
         allPayments,
