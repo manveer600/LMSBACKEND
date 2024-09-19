@@ -21,17 +21,16 @@ export const getAllCourses = async (req, res, next) => {
         const where = {};
 
         if (req.query.title) {
-            where.title = { $regex: req.query.title, $options: 'i' }; 
+            const searchItem = { $regex: req.query.title, $options: 'i' };
+
+            where.$or = [
+                { title: searchItem },
+                { category: searchItem },
+                { createdBy: searchItem }
+            ]
         }
 
-        if (req.query.category) {
-            where.category = { $regex: req.query.category, $options: 'i' };
-        }
-
-        if (req.query.instructor) {
-            where.instructor = { $regex: req.query.instructor, $options: 'i' };
-        }
-
+        console.log('where is this', where);
         const courses = await Course.find(where).select('-lectures');
         res.status(200).json({
             success: true,
@@ -186,8 +185,6 @@ export const updateCourseById = async (req, res, next) => {
             course.title = title;
         }
 
-
-
         if (req.file) {
             await cloudinary.v2.uploader.destroy(course.thumbnail.public_id);
             course.thumbnail.secure_url = "dummy";
@@ -214,13 +211,53 @@ export const updateCourseById = async (req, res, next) => {
         return res.status(200).json({
             Success: true,
             Message: 'Course Updated Successfully',
-            course
+            data: course
         })
 
     } catch (e) {
         return next(new AppError(e.message, 500));
     }
 }
+
+export const updateFavCourse = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        const userId = req.user.id;
+        // console.log(id);
+        // console.log(req.user);       
+        const course = await Course.findById(id);
+        if (!course) {
+            return next(new AppError('Course does not exist with this id', 400));
+        }
+        const favCourseIndex = course.favCourse.findIndex((fav) => fav.userId.toString() === userId);
+        console.log('index', favCourseIndex);
+        let returnData;
+        if (favCourseIndex == -1) {
+            const favouriteCourse = { userId: userId, value: true };
+            course.favCourse.push(favouriteCourse);
+            returnData = course.favCourse[0];
+        } else {
+            course.favCourse[favCourseIndex].value = !course.favCourse[favCourseIndex].value;
+            returnData = course.favCourse[favCourseIndex];
+        }
+        await course.save();
+        return res.status(200).json({
+            success: true,
+            message: 'Fav Course Updated Successfully',
+            data: course,
+            favCourseData: returnData
+        })
+
+
+    } catch (e) {
+        console.log('error updating fav course', e);
+        return next(new AppError(e.message, 500));
+    }
+}
+
+// export const getAllFavCourses = async(req,res,next) =>{
+//     const favCourses = 
+// }
 
 export const addLectureToCourseById = async (req, res, next) => {
     try {
@@ -451,7 +488,6 @@ export const deleteLecturesOfSpecificCourse = async (req, res, next) => {
 }
 
 export const deleteAllCourses = async (req, res, next) => {
-    console.log('chal shukr h yahan tk toh ponch rha hoon')
     try {
         // Use the Mongoose model directly to delete all documents from the collection
         await Course.deleteMany({});

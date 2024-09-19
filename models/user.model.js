@@ -2,7 +2,6 @@ import mongoose from "mongoose";
 import jwt  from "jsonwebtoken";
 import crypto from 'crypto';
 const userSchema  = mongoose.Schema({
-
     fullName: {
         type : String,
         required:[true,"Name is required"],
@@ -47,7 +46,6 @@ const userSchema  = mongoose.Schema({
     
 },{ timeStamps:true});
 
-
 userSchema.methods = {
     generateJWTToken: async function(){
         console.log('token bna rhe h');
@@ -78,8 +76,6 @@ userSchema.methods = {
         return resetToken;
     }
 }
-
-
 
 const User = mongoose.model('User', userSchema);
 

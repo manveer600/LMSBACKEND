@@ -1,16 +1,16 @@
 import express from "express";
 const router = express.Router();
 
-import { getAllCourses, getLecturesByCourseId, createCourse, updateCourseById, removeCourse, addLectureToCourseById, updateLecturesOfSpecificCourse, deleteLecturesOfSpecificCourse, deleteAllCourses } from '../controllers/courseController.js'
+import { getAllCourses, getLecturesByCourseId, createCourse, updateCourseById, removeCourse, addLectureToCourseById, updateLecturesOfSpecificCourse, deleteLecturesOfSpecificCourse, deleteAllCourses, updateFavCourse } from '../controllers/courseController.js'
 import { isLoggedIn, authorizedRoles } from "../middlewares/auth.middleware.js";
 import upload from "../middlewares/multer.middleware.js";
-import multer from "multer";
 
 router.get('/', getAllCourses);
 router.post('/', isLoggedIn, authorizedRoles, upload.single('thumbnail'), createCourse);
 
 router.get('/:id', isLoggedIn, getLecturesByCourseId);
 router.put('/:id', isLoggedIn, authorizedRoles, upload.single('thumbnail'), updateCourseById);
+router.put('/fav/:id', isLoggedIn, updateFavCourse);
 router.delete('/deleteallcourses', isLoggedIn, authorizedRoles, deleteAllCourses);
 router.delete('/:id', isLoggedIn, authorizedRoles, removeCourse);
 
