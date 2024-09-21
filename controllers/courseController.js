@@ -222,9 +222,7 @@ export const updateCourseById = async (req, res, next) => {
 export const updateFavCourse = async (req, res, next) => {
     try {
         const { id } = req.params;
-        const userId = req.user.id;
-        // console.log(id);
-        // console.log(req.user);       
+        const userId = req.user.id;   
         const course = await Course.findById(id);
         if (!course) {
             return next(new AppError('Course does not exist with this id', 400));
