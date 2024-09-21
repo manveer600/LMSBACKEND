@@ -42,8 +42,7 @@ const userSchema  = mongoose.Schema({
     subscription:{
         id:String,
         status:String
-    }
-    
+    }   
 },{ timeStamps:true});
 
 userSchema.methods = {

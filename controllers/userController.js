@@ -13,12 +13,60 @@ const cookieOptions = {
     sameSite: "none"
 }
 
-const register = async (req, res, next) => {
+function generateOtp() {
+    return Math.floor(100000 + Math.random() * 900000); // 6-digit OTP
+}
 
+const generateOTP = async (req, res, next) => {
+    try {
+        const { fullName, email, password } = req.body;
+        if (!email) {
+            //MERE PASS 1 ERROR OBJECT AAYA MENE USKO AAGE BHEJ DIYA AB AAGE KAHAN ?
+            //AAGE MTLB ERROR.MIDDLEWARE.JS ME 
+            return next(new AppError('All fields are required', 400));
+        }
+
+        const validateEmail = emailValidator.validate(email);
+        if (!validateEmail) {
+            return next(new AppError('Email is not valid', 400));
+        }
+
+        const userExists = await User.findOne({ email });
+        if (userExists) {
+            return next(new AppError('Email already exists', 409));
+        }
+
+        const otp = generateOtp();
+        const subject = `One Time Password`;
+        const text = `Your One Time Password`;
+        const html = `<h3><b>Your one time password link is this ${otp}.<b/><h3></br>Remember the link is only valid till for 5 mins.`;
+        const emailSend = await sendEmail(email, subject, text, html);
+        if (emailSend) {
+            return res.status(200).json({
+                success: true,
+                message: `OTP has been sent to ${email} `,
+                data: otp
+            })
+        }
+        return res.status(400).json({
+            sucess: false,
+            message: `Unable to send the otp at ${email}. Please try later`
+        })
+    } catch (error) {
+        console.log('error while generating OTP', error);
+        return res.status(400).json({
+            success: false,
+            message: error?.message
+        })
+    }
+
+}
+
+const register = async (req, res, next) => {
+    console.log('req body is this', req.body);
     console.log(req.file);
     try {
         const { fullName, email, password } = req.body;
-        console.log(req.body);
         if (!fullName || !email || !password) {
             //MERE PASS 1 ERROR OBJECT AAYA MENE USKO AAGE BHEJ DIYA AB AAGE KAHAN ?
             //AAGE MTLB ERROR.MIDDLEWARE.JS ME 
@@ -94,7 +142,7 @@ const register = async (req, res, next) => {
         return res.status(200).json({
             success: true,
             message: 'User registered successfully',
-            data:user
+            data: user
         })
 
     } catch (e) {
@@ -105,13 +153,6 @@ const register = async (req, res, next) => {
 
 const logout = (req, res) => {
     try {
-        // res.cookie('token', null, {
-        //     secure: true,
-        //     maxAge: 0,
-        //     httpOnly: true
-        // })
-
-        // res.cookie('token', null);
         res
             .cookie('token', null, {
                 secure: true,
@@ -161,7 +202,7 @@ const login = async (req, res, next) => {
             .status(200).json({
                 success: true,
                 message: "User LoggedIn successfully",
-                data:user,
+                data: user,
                 Token: token
             });
 
@@ -186,7 +227,7 @@ const getProfile = async (req, res, next) => {
         res.status(200).json({
             success: true,
             message: "Fetched User Details",
-            data:user
+            data: user
         })
     } catch (err) {
         return next(new AppError(err.message, 400));
@@ -264,7 +305,7 @@ const resetPassword = async (req, res, next) => {
     try {
         const user = await User.findOne({
             forgotPasswordToken: hashToken,
-            forgotPasswordExpiry: { $gt: Date.now() } 
+            forgotPasswordExpiry: { $gt: Date.now() }
         });
 
         if (!user) {
@@ -447,4 +488,4 @@ const deleteUser = async (req, res, next) => {
 }
 
 
-export { register, login, logout, getProfile, forgotPassword, resetPassword, changePassword, updateUser, deleteUser };
+export { register, login, logout, getProfile, forgotPassword, resetPassword, changePassword, updateUser, deleteUser, generateOTP };
